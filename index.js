@@ -41,7 +41,7 @@ export default {
   id: "model-routing",
 
   async setup(ctx) {
-    const { apiKey, models } = ctx.options ?? {}
+    const { apiKey, models, ignore = [] } = ctx.options ?? {}
     if (!apiKey || models?.length !== LEVELS.length)
       throw new Error(`model-routing: options need apiKey and ${LEVELS.length} models, simplest first`)
     const refs = models.map(ref)
@@ -54,6 +54,8 @@ export default {
           ctx.session.get({ sessionID }),
           ctx.session.context({ sessionID }),
         ])
+        // Not judged at all: the user kept the session's model for prompts like this one.
+        if (ignore.some((keyword) => prompt.text.includes(keyword))) return
         // Not subagent sessions: their model is the one configured for the agent.
         if (session.parentID || messages.some((message) => STARTED.includes(message.type))) return
         // Not judged again: the first prompt is not in the context until its hook returns, so a prompt

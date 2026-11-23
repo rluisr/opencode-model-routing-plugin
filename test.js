@@ -14,12 +14,12 @@ globalThis.fetch = async (url, init) => {
 }
 const scored = (score) => Response.json({ answers: { complexity: { type: "score", score } } })
 
-async function load({ session = {}, messages = [] } = {}) {
+async function load({ session = {}, messages = [], opts = options } = {}) {
   requests = []
   const switched = []
   let hook
   await plugin.setup({
-    options,
+    options: opts,
     session: {
       hook: async (name, callback) => name === "prompt" && (hook = callback),
       get: async () => session,
@@ -71,6 +71,15 @@ assert.equal(requests.length, 0, "a later prompt is not judged")
 assert.deepEqual(await route({ messages: [{ type: "compaction" }] }), [], "a compacted session keeps its model")
 assert.equal((await route({ messages: [{ type: "model-switched" }] })).length, 1, "a model picked before the first prompt is replaced")
 assert.deepEqual(await route({ session: { parentID: "ses_p" } }), [], "a subagent session keeps its agent's model")
+
+{
+  const { switched, prompt } = await load({ opts: { ...options, ignore: ["no-routing"] } })
+  await prompt("no-routing のまま回答して")
+  assert.deepEqual(switched, [], "a prompt with an ignore keyword keeps the session's model")
+  assert.equal(requests.length, 0, "a prompt with an ignore keyword is not judged")
+  await prompt("typo を直して")
+  assert.equal(requests.length, 1, "other prompts are still judged")
+}
 
 reply = Response.json({ error: { message: "Invalid API key" } }, { status: 401 })
 assert.deepEqual(await route(), [], "a prompt is still admitted, on the session's model, when the API fails")
